@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+set -e
+
+current_branch=$(git branch --show-current)
+backup_branch="${current_branch}-bck"
+
+echo "Create a backup branch..."
+git branch --force "$backup_branch"
+
+echo "Sync with upstream..."
+helper_commit=$(git log --grep="Add sync helper for easy sync with upstream" --format=format:%H)
+git fetch --all
+git reset --hard "upstream/$current_branch"
+
+echo "Setup config files as symlinks to cloned repo in parent dir..."
+files=(
+    _Bootscreen.h
+    _Statusscreen.h
+    Configuration.h
+    Configuration_adv.h
+)
+
+config_dir=../../marlin-configurations/config/examples/Creality/Ender-3\ Pro/BigTreeTech\ SKR\ Mini\ E3\ 2.0
+
+for file in "${files[@]}"; do
+    name="Marlin/$file"
+    echo "Create relative symbolic link '$name' ..."
+    ln -sfn "$config_dir/$file" "$name"
+done
+
+git add .
+git commit --all --message "Setup config files as symlinks to cloned repo in parent dir"
+
+echo "Cherry-picking changes..."
+git cherry-pick "$helper_commit"^1.."$backup_branch"
+
+echo "DONE!"
